@@ -8,6 +8,7 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "node --test",
+    "lint": "node --check src/server.js src/app.js src/services.js src/rules.js src/auth.js src/config.js src/db.js src/errors.js src/routes/*.js",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed",

@@ -6,9 +6,44 @@ import { State } from './Public.jsx';
 export function AdminDashboard() {
   return (
     <section>
-      <h1>Admin</h1>
+      <h1>Admin Dashboard</h1>
+      <Analytics />
       <Professionals />
       <Plans />
+    </section>
+  );
+}
+
+function Analytics() {
+  const { data, loading, error, reload } = useApi('/api/admin/analytics');
+  return (
+    <section className="analytics-section">
+      <h2>Operational Analytics</h2>
+      <State loading={loading} error={error} reload={reload} />
+      {data && (
+        <div className="grid">
+          <div className="card">
+            <h3>Monthly Recurring Revenue (MRR)</h3>
+            <p className="price">{rupees(data.mrrPaise)}</p>
+            <p className="note">{data.activeSubscriptionsCount} active subscription{data.activeSubscriptionsCount === 1 ? '' : 's'}</p>
+          </div>
+          <div className="card">
+            <h3>Customers</h3>
+            <p className="price">{data.totalCustomers}</p>
+            <p className="note">Registered accounts</p>
+          </div>
+          <div className="card">
+            <h3>Service Fulfillment</h3>
+            <p className="price">{data.completionRate}%</p>
+            <p className="note">{data.completedBookings} of {data.totalBookings} bookings completed</p>
+          </div>
+          <div className="card">
+            <h3>Customer Satisfaction</h3>
+            <p className="price">{data.averageRating ? `${data.averageRating} / 5` : 'No reviews'}</p>
+            <p className="note">{data.reviewCount} total review{data.reviewCount === 1 ? '' : 's'}</p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

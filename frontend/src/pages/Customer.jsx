@@ -19,11 +19,23 @@ export function Dashboard() {
         <div className="card">
           <h3>{sub.data.planName} <span className="badge">{sub.data.status}</span></h3>
           <p>Paid {rupees(sub.data.pricePaise)} ({sub.data.interval.toLowerCase()}, simulated). Valid until {when(sub.data.endsAt)}.</p>
-          <p className="note">Renewal is not automated yet: buy again after expiry.</p>
+          <p className="note">Renewal is not automated yet: buy again after expiry or cancellation.</p>
           <ul>{sub.data.benefits.map((b) => (
             <li key={b.categoryName}>{b.categoryName}: {b.usedThisPeriod} used of {b.allowance === null ? 'unlimited' : b.allowance} this {b.periodMonths}-month period</li>
           ))}</ul>
-          <Link className="button" to="/bookings">Book a service</Link>
+          <div className="actions">
+            <Link className="button" to="/bookings">Book a service</Link>{' '}
+            <button onClick={async () => {
+              if (window.confirm('Are you sure you want to cancel your active subscription?')) {
+                try {
+                  await api('/api/subscriptions/cancel', { method: 'POST' });
+                  sub.reload();
+                } catch (e) {
+                  alert(e.message);
+                }
+              }
+            }}>Cancel subscription</button>
+          </div>
         </div>
       )}
       <h2>Are you a service professional?</h2>

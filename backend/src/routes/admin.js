@@ -69,3 +69,45 @@ adminRouter.patch('/professionals/:id', async (req, res) => {
   audit('professional.decision', req, { professionalId: id, status });
   res.json({ data: pro });
 });
+
+adminRouter.get('/analytics', async (_req, res) => {
+  const now = new Date();
+  const activeSubs = await prisma.subscription.findMany({
+    where: { status: 'ACTIVE', endsAt: { gt: now } },
+    select: { pricePaise: true, interval: true },
+  });
+
+  // Calculate MRR from active subscriptions:
+  // MONTHLY: pricePaise
+  // QUARTERLY: pricePaise / 3
+  // YEARLY: pricePaise / 12
+  const mrrPaise = activeSubs.reduce((acc, sub) => {
+    if (sub.interval === 'MONTHLY') return acc + sub.pricePaise;
+    if (sub.interval === 'QUARTERLY') return acc + Math.round(sub.pricePaise / 3);
+    if (sub.interval === 'YEARLY') return acc + Math.round(sub.pricePaise / 12);
+    return acc;
+  }, 0);
+
+  const [totalCustomers, totalBookings, completedBookings, reviews] = await Promise.all([
+    prisma.profile.count({ where: { role: 'CUSTOMER' } }),
+    prisma.booking.count(),
+    prisma.booking.count({ where: { status: 'COMPLETED' } }),
+    prisma.review.aggregate({ _avg: { rating: true }, _count: true }),
+  ]);
+
+  const completionRate = totalBookings > 0 ? Number(((completedBookings / totalBookings) * 100).toFixed(1)) : 0;
+  const avgRating = reviews._avg.rating ? Number(reviews._avg.rating.toFixed(2)) : null;
+
+  res.json({
+    data: {
+      mrrPaise,
+      activeSubscriptionsCount: activeSubs.length,
+      totalCustomers,
+      totalBookings,
+      completedBookings,
+      completionRate,
+      averageRating: avgRating,
+      reviewCount: reviews._count,
+    },
+  });
+});

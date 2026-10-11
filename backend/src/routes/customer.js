@@ -25,6 +25,20 @@ customerRouter.get('/subscriptions/current', async (req, res) => {
   res.json({ data: await currentSubscription(req.user.id) });
 });
 
+customerRouter.post('/subscriptions/cancel', async (req, res) => {
+  const sub = await prisma.subscription.findFirst({
+    where: { customerId: req.user.id, status: 'ACTIVE', endsAt: { gt: new Date() } },
+  });
+  if (!sub) throw new HttpError(404, 'NOT_FOUND', 'No active subscription found to cancel');
+
+  const updated = await prisma.subscription.update({
+    where: { id: sub.id },
+    data: { status: 'CANCELLED' },
+    select: { id: true, planName: true, status: true, endsAt: true },
+  });
+  res.json({ data: updated });
+});
+
 customerRouter.get('/payments', async (req, res) => {
   const rows = await prisma.payment.findMany({
     where: { customerId: req.user.id }, orderBy: { createdAt: 'desc' }, ...page(req.query),
