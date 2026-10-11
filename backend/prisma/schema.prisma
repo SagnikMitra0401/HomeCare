@@ -8,12 +8,43 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum Role { CUSTOMER PROFESSIONAL ADMIN }
-enum ProStatus { PENDING APPROVED REJECTED }
-enum Interval { MONTHLY QUARTERLY YEARLY }
-enum SubStatus { ACTIVE CANCELLED EXPIRED }
-enum PayStatus { PENDING SUCCEEDED FAILED }
-enum BookingStatus { PENDING ACCEPTED IN_PROGRESS COMPLETED CANCELLED }
+enum Role {
+  CUSTOMER
+  PROFESSIONAL
+  ADMIN
+}
+
+enum ProStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Interval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum PayStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
 
 // id = Supabase auth user id. Role lives ONLY here (never taken from the token or request).
 model Profile {
