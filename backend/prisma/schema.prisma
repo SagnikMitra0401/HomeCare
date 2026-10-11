@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role { CUSTOMER PROFESSIONAL ADMIN }
+enum ProStatus { PENDING APPROVED REJECTED }
+enum Interval { MONTHLY QUARTERLY YEARLY }
+enum SubStatus { ACTIVE CANCELLED EXPIRED }
+enum PayStatus { PENDING SUCCEEDED FAILED }
+enum BookingStatus { PENDING ACCEPTED IN_PROGRESS COMPLETED CANCELLED }
+
+// id = Supabase auth user id. Role lives ONLY here (never taken from the token or request).
+model Profile {
+  id            String         @id @db.Uuid
+  email         String         @unique
+  fullName      String?
+  role          Role           @default(CUSTOMER)
+  suspended     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  professional  Professional?
+  subscriptions Subscription[]
+  payments      Payment[]
+  bookings      Booking[]
+}
+
+model ServiceCategory {
+  id            String         @id @default(uuid()) @db.Uuid
+  slug          String         @unique
+  name          String
+  professionals Professional[]
+  benefits      PlanBenefit[]
+  bookings      Booking[]
+}
+
+model Professional {
+  id         String            @id @default(uuid()) @db.Uuid
+  userId     String            @unique @db.Uuid
+  user       Profile           @relation(fields: [userId], references: [id])
+  status     ProStatus         @default(PENDING)
+  city       String
+  categories ServiceCategory[]
+  createdAt  DateTime          @default(now())
+  decidedAt  DateTime?
+  bookings   Booking[]
+  declines   BookingDecline[]
+}
+
+model Plan {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String         @unique
+  description   String
+  interval      Interval
+  pricePaise    Int
+  perks         String[]
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  benefits      PlanBenefit[]
+  subscriptions Subscription[]
+  payments      Payment[]
+}
+
+// allowance null = unlimited. Allowance applies per `periodMonths` window anchored at subscription start.
+model PlanBenefit {
+  id           String          @id @default(uuid()) @db.Uuid
+  planId       String          @db.Uuid
+  plan         Plan            @relation(fields: [planId], references: [id])
+  categoryId   String          @db.Uuid
+  category     ServiceCategory @relation(fields: [categoryId], references: [id])
+  allowance    Int?
+  periodMonths Int
+  @@unique([planId, categoryId])
+}
+
+// Price, interval and benefit terms are snapshotted at purchase time.
+model Subscription {
+  id               String    @id @default(uuid()) @db.Uuid
+  customerId       String    @db.Uuid
+  customer         Profile   @relation(fields: [customerId], references: [id])
+  planId           String    @db.Uuid
+  plan             Plan      @relation(fields: [planId], references: [id])
+  planName         String
+  status           SubStatus @default(ACTIVE)
+  pricePaise       Int
+  interval         Interval
+  benefitsSnapshot Json
+  startsAt         DateTime
+  endsAt           DateTime
+  createdAt        DateTime  @default(now())
+  payment          Payment?
+  bookings         Booking[]
+  @@index([customerId, status, endsAt])
+}
+
+// Always a SIMULATED transaction. No card/UPI data is ever stored.
+model Payment {
+  id             String        @id @default(uuid()) @db.Uuid
+  customerId     String        @db.Uuid
+  customer       Profile       @relation(fields: [customerId], references: [id])
+  planId         String        @db.Uuid
+  plan           Plan          @relation(fields: [planId], references: [id])
+  subscriptionId String?       @unique @db.Uuid
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  idempotencyKey String        @unique
+  amountPaise    Int
+  currency       String        @default("INR")
+  status         PayStatus
+  simulated      Boolean       @default(true)
+  failureReason  String?
+  createdAt      DateTime      @default(now())
+  @@index([customerId, createdAt])
+}
+
+model Booking {
+  id             String           @id @default(uuid()) @db.Uuid
+  customerId     String           @db.Uuid
+  customer       Profile          @relation(fields: [customerId], references: [id])
+  categoryId     String           @db.Uuid
+  category       ServiceCategory  @relation(fields: [categoryId], references: [id])
+  subscriptionId String           @db.Uuid
+  subscription   Subscription     @relation(fields: [subscriptionId], references: [id])
+  professionalId String?          @db.Uuid
+  professional   Professional?    @relation(fields: [professionalId], references: [id])
+  slotStart      DateTime
+  address        String
+  city           String
+  notes          String?
+  status         BookingStatus    @default(PENDING)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  review         Review?
+  declines       BookingDecline[]
+  // A professional cannot hold two jobs in the same slot (NULLs may repeat).
+  @@unique([professionalId, slotStart])
+  @@index([customerId, createdAt])
+  @@index([status, categoryId, city])
+  @@index([professionalId, status])
+}
+
+model BookingDecline {
+  bookingId      String       @db.Uuid
+  booking        Booking      @relation(fields: [bookingId], references: [id])
+  professionalId String       @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  @@id([bookingId, professionalId])
+}
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @unique @db.Uuid
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+}

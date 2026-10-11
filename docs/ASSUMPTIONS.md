@@ -1,0 +1,13 @@
+# Assumptions (safest simple choice where the specs were silent)
+
+**Roles.** Role is stored only in `Profile.role`. Sign-up always yields CUSTOMER. Applying as a professional sets PROFESSIONAL (customer features then unavailable); work needs `Professional.status = APPROVED`. ADMIN only via `npm run make-admin`.
+**Money.** Integer paise, INR. Server reads price from DB; subscription stores price, interval and benefit terms at purchase.
+**Simulated payment.** Server decides the outcome: success unless `ALLOW_SIMULATED_FAILURE=true` and the dev "decline" scenario is chosen. Failure persists a FAILED payment and creates no subscription. Retries with the same idempotency key return the original result.
+**Subscriptions.** One ACTIVE subscription per customer; plan change mid-term is not supported (buy after expiry). Term = interval months from purchase. Expiry is evaluated by `endsAt` at read time; no cancellation/refund flow yet.
+**Entitlements.** Allowance is per `periodMonths` window anchored at subscription start (e.g. AC once per 3 months). `null` allowance = unlimited, and is not fair-use capped yet. Consumed when a booking is requested, released on cancellation, no rollover. Only listed services are bookable; text perks (emergency discount, priority support, service manager) are informational.
+**Bookings.** Slots: future, on the hour/half hour, within 90 days and before subscription end. Broadcast model: PENDING requests are visible to approved professionals in the same city (case-insensitive) offering the category; first to accept wins. Decline hides it for that professional only. No timeout/auto-reassign. Transitions: PENDING→ACCEPTED→IN_PROGRESS→COMPLETED by the professional; customer may cancel while PENDING/ACCEPTED (frees entitlement and slot); no fees/refunds. Slot exclusivity per professional is a DB unique constraint; no buffer time.
+**Privacy.** Professionals see category, time and city before accepting; address, notes and customer name only after accepting. Customers see the professional's name only.
+**Reviews.** One per COMPLETED booking, rating 1–5, rendered as plain text.
+**Audit.** Security events (authz denial, plan changes, professional decisions) are logged as JSON without tokens or personal data; no audit table yet.
+**RLS.** App data access is Express + Prisma only. `constraints_and_rls.sql` enables RLS with no policies and revokes API-role grants. Prisma's owner role bypasses RLS, so Express is the real authorization layer.
+**Token verification.** JWKS verification (asymmetric Supabase keys) by default; HS256 secret supported for legacy projects.
