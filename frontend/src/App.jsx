@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
-import { Plans, Login } from './pages/Public.jsx';
+import { Plans, Services, Login } from './pages/Public.jsx';
 import { Dashboard, Checkout, Payments, Bookings } from './pages/Customer.jsx';
 import { ProDashboard } from './pages/Pro.jsx';
 import { AdminDashboard } from './pages/Admin.jsx';
@@ -23,6 +23,7 @@ export default function App() {
         <strong>HomeCare Plans</strong>
         <nav aria-label="Main">
           <Link to="/">Plans</Link>
+          <Link to="/services">Services</Link>
           {me?.role === 'CUSTOMER' && (<>
             <Link to="/dashboard">Dashboard</Link>
             <Link to="/bookings">Bookings</Link>
@@ -36,6 +37,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Plans />} />
+          <Route path="/services" element={<Services />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Guard roles={['CUSTOMER']}><Dashboard /></Guard>} />
           <Route path="/checkout/:planId" element={<Guard roles={['CUSTOMER']}><Checkout /></Guard>} />

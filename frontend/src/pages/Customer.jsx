@@ -88,6 +88,7 @@ export function Checkout() {
   const { data: plans, loading, error } = useApi('/api/plans');
   const plan = plans?.find((p) => p.id === planId);
   const key = useMemo(() => crypto.randomUUID(), []); // same key on retry => no duplicate charge
+  const [method, setMethod] = useState('UPI');
   const [scenario, setScenario] = useState('APPROVE');
   const [result, setResult] = useState(null);
   const [err, setErr] = useState(null);
@@ -105,22 +106,83 @@ export function Checkout() {
   return (
     <section className="narrow">
       <h1>Confirm simulated purchase</h1>
-      <p className="note">TEST MODE: no real payment is taken. Do not enter card, UPI or bank details anywhere.</p>
-      <div className="card"><h2>{plan.name}</h2><p className="price">{rupees(plan.pricePaise)}</p></div>
-      <label>Test scenario
-        <select value={scenario} onChange={(e) => setScenario(e.target.value)}>
-          <option value="APPROVE">Simulate successful payment</option>
-          <option value="DECLINE">Simulate declined payment (dev only)</option>
-        </select>
-      </label>
-      {!result && <button onClick={pay} disabled={busy}>{busy ? 'Processing…' : 'Confirm simulated payment'}</button>}
+      <p className="note">TEST MODE: No real financial transaction will occur. Do not enter real card numbers, UPI PINs, or bank credentials.</p>
+      <div className="card">
+        <h2>{plan.name}</h2>
+        <p className="price">{rupees(plan.pricePaise)} <small>/ {plan.interval.toLowerCase()}</small></p>
+        <p className="note">{plan.description}</p>
+      </div>
+
+      <div className="card">
+        <h3>Select Simulated Payment Method</h3>
+        <label className="inline">
+          <input type="radio" name="method" value="UPI" checked={method === 'UPI'} onChange={(e) => setMethod(e.target.value)} />
+          UPI (Google Pay / PhonePe / Paytm - Dummy)
+        </label>
+        <br />
+        <label className="inline">
+          <input type="radio" name="method" value="CARD" checked={method === 'CARD'} onChange={(e) => setMethod(e.target.value)} />
+          Credit / Debit Card (Simulated)
+        </label>
+        <br />
+        <label className="inline">
+          <input type="radio" name="method" value="NETBANKING" checked={method === 'NETBANKING'} onChange={(e) => setMethod(e.target.value)} />
+          Net Banking (Simulated)
+        </label>
+
+        {method === 'UPI' && (
+          <div style={{ marginTop: '.5rem', padding: '.5rem', background: '#f8fafc', borderRadius: '4px' }}>
+            <label>Dummy UPI ID
+              <input readOnly value="user@dummyupi" style={{ background: '#e2e8f0' }} />
+            </label>
+            <p className="note">Auto-approved simulated UPI handle.</p>
+          </div>
+        )}
+
+        {method === 'CARD' && (
+          <div style={{ marginTop: '.5rem', padding: '.5rem', background: '#f8fafc', borderRadius: '4px' }}>
+            <label>Dummy Card Number
+              <input readOnly value="•••• •••• •••• 4242 (Test Card)" style={{ background: '#e2e8f0' }} />
+            </label>
+            <p className="note">Standard test card format.</p>
+          </div>
+        )}
+
+        {method === 'NETBANKING' && (
+          <div style={{ marginTop: '.5rem', padding: '.5rem', background: '#f8fafc', borderRadius: '4px' }}>
+            <label>Simulated Bank
+              <select defaultValue="HDFC">
+                <option value="HDFC">HDFC Bank (Simulated)</option>
+                <option value="ICICI">ICICI Bank (Simulated)</option>
+                <option value="SBI">State Bank of India (Simulated)</option>
+              </select>
+            </label>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <label>Payment Outcome Simulation
+          <select value={scenario} onChange={(e) => setScenario(e.target.value)}>
+            <option value="APPROVE">Simulate successful payment</option>
+            <option value="DECLINE">Simulate declined payment (test error handling)</option>
+          </select>
+        </label>
+      </div>
+
+      {!result && (
+        <button onClick={pay} disabled={busy} style={{ width: '100%', marginTop: '.5rem' }}>
+          {busy ? 'Processing simulated transaction…' : `Pay ${rupees(plan.pricePaise)} (Simulated via ${method})`}
+        </button>
+      )}
       {err && <p className="error" role="alert">{err}</p>}
       {result && (result.payment.status === 'SUCCEEDED'
-        ? <p className="ok" role="status">Simulated payment succeeded. Subscription active until {when(result.subscription.endsAt)}. <button onClick={() => nav('/dashboard')}>Go to dashboard</button></p>
+        ? <p className="ok" role="status">Simulated payment succeeded via {method}. Subscription active until {when(result.subscription.endsAt)}. <button onClick={() => nav('/dashboard')}>Go to dashboard</button></p>
         : <p className="error" role="alert">Simulated payment failed ({result.payment.failureReason}). No subscription was activated. <button onClick={() => window.location.reload()}>Try again</button></p>)}
     </section>
   );
 }
+
 
 export function Payments() {
   const { data, loading, error, reload } = useApi('/api/payments');

@@ -42,7 +42,31 @@ export function Plans() {
   );
 }
 
+export function Services() {
+  const { data, loading, error, reload } = useApi('/api/categories');
+  const { me } = useAuth();
+  return (
+    <section>
+      <h1>Our Services & Preventive Care</h1>
+      <p className="note">Professional home maintenance services included in our subscription plans. Compare plans to get scheduled visits & priority emergency repairs.</p>
+      <State loading={loading} error={error} empty={data && !data.length} reload={reload} />
+      <div className="grid">
+        {data?.map((cat) => (
+          <article className="card" key={cat.id}>
+            <h2>{cat.name}</h2>
+            <p className="note">Available across supported cities. Covered under Basic, Standard, and Premium subscription plans.</p>
+            <div style={{ marginTop: '1rem' }}>
+              <Link className="button" to="/">View Plans Covering {cat.name}</Link>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function Login() {
+
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', fullName: '' });
   const [msg, setMsg] = useState(null);
