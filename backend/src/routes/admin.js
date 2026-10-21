@@ -153,3 +153,20 @@ adminRouter.patch('/disputes/:id', async (req, res) => {
   res.json({ data: dispute });
 });
 
+// Admin / Cron background maintenance: sweep expired subscriptions
+adminRouter.post('/maintenance/sweep-expired-subscriptions', async (req, res) => {
+  const now = new Date();
+  const result = await prisma.subscription.updateMany({
+    where: {
+      status: 'ACTIVE',
+      endsAt: { lte: now },
+    },
+    data: {
+      status: 'EXPIRED',
+    },
+  });
+  audit('maintenance.subscriptions_swept', req, { expiredCount: result.count });
+  res.json({ data: { sweptAt: now, expiredCount: result.count } });
+});
+
+

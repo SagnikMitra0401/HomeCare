@@ -29,6 +29,10 @@
   - Added customer dispute submission and admin resolution/refund actions in the UI.
 - [x] **Subscription renewal reminders**:
   - Added proactive 7-day expiry warning banner on customer dashboard in `frontend/src/pages/Customer.jsx`.
+- [x] **Subscription expiry background sweep**:
+  - Added `scripts/sweep-expired.js` for standalone cron or scheduled runner.
+  - Added `npm run sweep-expired` command to `backend/package.json`.
+  - Added `POST /api/admin/maintenance/sweep-expired-subscriptions` endpoint for admin-triggered sweeps.
 
 ## Outstanding Tasks
 
@@ -37,10 +41,10 @@
 - [ ] Concurrency & cross-user database integration tests with live PostgreSQL test instance (double purchase race, double booking race, Customer A attempting to cancel Customer B's booking).
 
 ### Medium Priority (P2)
-- [ ] Scheduled renewal job / background sweep for expiring subscriptions.
 - [ ] Document upload (private Supabase storage bucket) for professional verification.
 - [ ] Granular professional availability slots beyond city broadcast.
 - [ ] Admin editing of plan benefit structures.
+
 
 
 ### Polish & CI (P3)

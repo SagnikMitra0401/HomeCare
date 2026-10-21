@@ -12,6 +12,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed": "prisma db seed",
+    "sweep-expired": "node scripts/sweep-expired.js",
     "make-admin": "node scripts/make-admin.js"
   },
   "prisma": { "seed": "node prisma/seed.js" },
