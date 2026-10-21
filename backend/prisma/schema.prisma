@@ -46,6 +46,12 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  REFUNDED
+}
+
 // id = Supabase auth user id. Role lives ONLY here (never taken from the token or request).
 model Profile {
   id            String         @id @db.Uuid
@@ -165,6 +171,7 @@ model Booking {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   review         Review?
+  dispute        Dispute?
   declines       BookingDecline[]
   // A professional cannot hold two jobs in the same slot (NULLs may repeat).
   @@unique([professionalId, slotStart])
@@ -189,3 +196,17 @@ model Review {
   comment   String?
   createdAt DateTime @default(now())
 }
+
+model Dispute {
+  id             String        @id @default(uuid()) @db.Uuid
+  bookingId      String        @unique @db.Uuid
+  booking        Booking       @relation(fields: [bookingId], references: [id])
+  customerId     String        @db.Uuid
+  reason         String
+  status         DisputeStatus @default(OPEN)
+  resolutionNote String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  @@index([status, createdAt])
+}
+

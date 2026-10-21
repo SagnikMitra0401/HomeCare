@@ -67,10 +67,12 @@ customerRouter.get('/bookings', async (req, res) => {
       category: { select: { name: true } },
       professional: { select: { user: { select: { fullName: true } } } }, // name only, no contact details
       review: { select: { rating: true, comment: true } },
+      dispute: { select: { id: true, reason: true, status: true, resolutionNote: true } },
     },
   });
   res.json({ data: rows });
 });
+
 
 const idParam = z.object({ id: z.string().uuid() });
 
@@ -96,3 +98,21 @@ customerRouter.post('/bookings/:id/review', async (req, res) => {
   const review = await prisma.review.create({ data: { bookingId: id, rating: body.rating, comment: body.comment ?? null }, select: { rating: true, comment: true } }); // unique bookingId => one review
   res.status(201).json({ data: review });
 });
+
+const disputeSchema = z.object({ reason: z.string().trim().min(5).max(1000) }).strict();
+
+customerRouter.post('/bookings/:id/dispute', async (req, res) => {
+  const { id } = parse(idParam, req.params);
+  const body = parse(disputeSchema, req.body);
+  const b = await prisma.booking.findFirst({ where: { id, customerId: req.user.id } });
+  if (!b) throw new HttpError(404, 'NOT_FOUND', 'Booking not found');
+  if (!['COMPLETED', 'CANCELLED'].includes(b.status)) {
+    throw new HttpError(409, 'BAD_REQUEST', 'Disputes can only be raised for completed or cancelled services');
+  }
+  const dispute = await prisma.dispute.create({
+    data: { bookingId: id, customerId: req.user.id, reason: body.reason },
+    select: { id: true, reason: true, status: true, createdAt: true },
+  });
+  res.status(201).json({ data: dispute });
+});
+

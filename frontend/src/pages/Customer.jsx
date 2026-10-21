@@ -9,9 +9,23 @@ export function Dashboard() {
   const { me, refreshMe } = useAuth();
   const sub = useApi('/api/subscriptions/current');
   const cats = useApi('/api/categories');
+
+  // Renewal reminder check: alert if subscription ends within 7 days
+  const isExpiringSoon = useMemo(() => {
+    if (!sub.data?.endsAt) return false;
+    const diffDays = (new Date(sub.data.endsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return diffDays > 0 && diffDays <= 7;
+  }, [sub.data?.endsAt]);
+
   return (
     <section>
       <h1>Welcome, {me.fullName || me.email}</h1>
+      {isExpiringSoon && (
+        <div className="card" style={{ borderColor: '#d97706', backgroundColor: '#fffbeb', color: '#92400e' }} role="status">
+          <strong>⚠️ Renewal Reminder:</strong> Your subscription ends in less than 7 days ({when(sub.data.endsAt)}).
+          Please renew or review your plan to continue uninterrupted home maintenance visits.
+        </div>
+      )}
       <h2>Your subscription</h2>
       <State loading={sub.loading} error={sub.error} reload={sub.reload} />
       {sub.data === null && !sub.loading && !sub.error && <p>No active subscription. <Link to="/">Browse plans</Link></p>}
@@ -177,11 +191,30 @@ export function Bookings() {
           {b.status === 'COMPLETED' && (b.review
             ? <p>Your review: {b.review.rating}/5 {b.review.comment}</p>
             : <ReviewForm onSubmit={(body) => act(`/api/bookings/${b.id}/review`, body)} />)}
+          {['COMPLETED', 'CANCELLED'].includes(b.status) && (b.dispute
+            ? <p className="note">Dispute status: <strong>{b.dispute.status}</strong> ({b.dispute.reason}){b.dispute.resolutionNote ? ` — Admin note: ${b.dispute.resolutionNote}` : ''}</p>
+            : <DisputeForm onSubmit={(body) => act(`/api/bookings/${b.id}/dispute`, body)} />)}
         </article>
       ))}
     </section>
   );
 }
+
+function DisputeForm({ onSubmit }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  if (!open) return <p><button className="link" onClick={() => setOpen(true)}>Raise a dispute / refund request</button></p>;
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ reason }); setOpen(false); }}>
+      <label>Reason for dispute / refund request
+        <input required minLength={5} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Describe the issue with the service..." />
+      </label>
+      <button>Submit dispute</button>{' '}
+      <button type="button" onClick={() => setOpen(false)}>Cancel</button>
+    </form>
+  );
+}
+
 
 function ReviewForm({ onSubmit }) {
   const [rating, setRating] = useState(5);

@@ -19,20 +19,29 @@
 - [x] **Lint & Verification scripts**:
   - Added `npm run lint` script using `node --check` across all backend modules.
   - Verified frontend production bundle builds without errors (`npm run build`).
+- [x] **Professional earnings summary**:
+  - Added `/api/pro/earnings` aggregating completed jobs, active jobs, average ratings, and payout figures.
+  - Added `Earnings` performance card in `frontend/src/pages/Pro.jsx`.
+- [x] **Dispute & simulated refund mechanism**:
+  - Added `Dispute` model in Prisma schema with migration `20261021000000_add_disputes`.
+  - Added `POST /api/bookings/:id/dispute` for customers.
+  - Added `GET /api/admin/disputes` and `PATCH /api/admin/disputes/:id` for administrators.
+  - Added customer dispute submission and admin resolution/refund actions in the UI.
+- [x] **Subscription renewal reminders**:
+  - Added proactive 7-day expiry warning banner on customer dashboard in `frontend/src/pages/Customer.jsx`.
 
 ## Outstanding Tasks
 
 ### High Priority (P1)
 - [ ] Connect and run migrations against a live test Supabase instance (`npx prisma migrate deploy && npm run seed`).
 - [ ] Concurrency & cross-user database integration tests with live PostgreSQL test instance (double purchase race, double booking race, Customer A attempting to cancel Customer B's booking).
-- [ ] Professional earnings summary endpoint and UI card.
-- [ ] Dispute / simulated refund mechanism on bookings.
 
 ### Medium Priority (P2)
 - [ ] Scheduled renewal job / background sweep for expiring subscriptions.
 - [ ] Document upload (private Supabase storage bucket) for professional verification.
 - [ ] Granular professional availability slots beyond city broadcast.
 - [ ] Admin editing of plan benefit structures.
+
 
 ### Polish & CI (P3)
 - [ ] GitHub Actions workflow configuration running lint, tests, and build on push.

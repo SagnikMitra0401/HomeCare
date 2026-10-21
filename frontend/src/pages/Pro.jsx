@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApi } from '../hooks.js';
-import { api, when } from '../api.js';
+import { api, rupees, when } from '../api.js';
 import { State } from './Public.jsx';
 
 export function ProDashboard() {
@@ -14,7 +14,41 @@ export function ProDashboard() {
         <p>Status: <span className="badge">{me.data.status}</span> · {me.data.city} · {me.data.categories.map((c) => c.name).join(', ')}</p>
       )}
       {me.data && !approved && <p className="note">You can accept jobs once an admin approves your application.</p>}
-      {approved && <Work />}
+      {approved && (
+        <>
+          <Earnings />
+          <Work />
+        </>
+      )}
+    </section>
+  );
+}
+
+function Earnings() {
+  const { data, loading, error, reload } = useApi('/api/pro/earnings');
+  return (
+    <section className="earnings-section">
+      <h2>Earnings & Performance Summary</h2>
+      <State loading={loading} error={error} reload={reload} />
+      {data && (
+        <div className="grid">
+          <div className="card">
+            <h3>Total Payout</h3>
+            <p className="price">{rupees(data.totalEarningsPaise)}</p>
+            <p className="note">Simulated earnings ({rupees(data.ratePerJobPaise)}/job)</p>
+          </div>
+          <div className="card">
+            <h3>Completed Jobs</h3>
+            <p className="price">{data.completedJobs}</p>
+            <p className="note">{data.inProgressJobs} in progress · {data.acceptedJobs} scheduled</p>
+          </div>
+          <div className="card">
+            <h3>Customer Rating</h3>
+            <p className="price">{data.averageRating ? `${data.averageRating} / 5` : 'No ratings yet'}</p>
+            <p className="note">{data.reviewCount} review{data.reviewCount === 1 ? '' : 's'}</p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

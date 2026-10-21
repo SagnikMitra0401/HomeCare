@@ -8,11 +8,52 @@ export function AdminDashboard() {
     <section>
       <h1>Admin Dashboard</h1>
       <Analytics />
+      <Disputes />
       <Professionals />
       <Plans />
     </section>
   );
 }
+
+function Disputes() {
+  const { data, loading, error, reload } = useApi('/api/admin/disputes?status=OPEN');
+  const [notes, setNotes] = useState({});
+  const [err, setErr] = useState(null);
+  const resolve = async (id, status) => {
+    setErr(null);
+    const note = notes[id] || (status === 'REFUNDED' ? 'Simulated refund processed' : 'Issue resolved');
+    try {
+      await api(`/api/admin/disputes/${id}`, { method: 'PATCH', body: { status, resolutionNote: note } });
+      reload();
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+  return (
+    <section className="disputes-section">
+      <h2>Open Disputes & Refund Requests</h2>
+      {err && <p className="error" role="alert">{err}</p>}
+      <State loading={loading} error={error} empty={data && !data.length} reload={reload} />
+      {data?.map((d) => (
+        <article className="card" key={d.id}>
+          <h3>{d.booking.category.name} ({d.booking.city})</h3>
+          <p>Customer: {d.booking.customer.fullName || d.booking.customer.email} · Professional: {d.booking.professional?.user?.fullName || 'None'}</p>
+          <p><strong>Dispute Reason:</strong> {d.reason}</p>
+          <label>Resolution note:
+            <input
+              value={notes[d.id] || ''}
+              onChange={(e) => setNotes({ ...notes, [d.id]: e.target.value })}
+              placeholder="Add resolution or refund comments..."
+            />
+          </label>
+          <button onClick={() => resolve(d.id, 'RESOLVED')}>Resolve without refund</button>{' '}
+          <button onClick={() => resolve(d.id, 'REFUNDED')}>Simulate Refund</button>
+        </article>
+      ))}
+    </section>
+  );
+}
+
 
 function Analytics() {
   const { data, loading, error, reload } = useApi('/api/admin/analytics');

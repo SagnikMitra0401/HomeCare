@@ -94,3 +94,38 @@ proRouter.post('/jobs/:id/status', ...work, async (req, res) => {
   if (!r.count) throw new HttpError(409, 'BAD_TRANSITION', 'Job changed; refresh and retry');
   res.json({ data: { id, status } });
 });
+
+proRouter.get('/earnings', ...work, async (req, res) => {
+  // Payout calculation: Each completed job pays a simulated flat rate of ₹400 (40,000 paise).
+  const completedJobs = await prisma.booking.count({
+    where: { professionalId: req.pro.id, status: 'COMPLETED' },
+  });
+  const inProgressJobs = await prisma.booking.count({
+    where: { professionalId: req.pro.id, status: 'IN_PROGRESS' },
+  });
+  const acceptedJobs = await prisma.booking.count({
+    where: { professionalId: req.pro.id, status: 'ACCEPTED' },
+  });
+
+  const reviews = await prisma.review.aggregate({
+    where: { booking: { professionalId: req.pro.id } },
+    _avg: { rating: true },
+    _count: true,
+  });
+
+  const ratePerJobPaise = 40000; // ₹400 simulated payout per service completion
+  const totalEarningsPaise = completedJobs * ratePerJobPaise;
+
+  res.json({
+    data: {
+      ratePerJobPaise,
+      completedJobs,
+      inProgressJobs,
+      acceptedJobs,
+      totalEarningsPaise,
+      averageRating: reviews._avg.rating ? Number(reviews._avg.rating.toFixed(2)) : null,
+      reviewCount: reviews._count,
+    },
+  });
+});
+

@@ -111,3 +111,45 @@ adminRouter.get('/analytics', async (_req, res) => {
     },
   });
 });
+
+adminRouter.get('/disputes', async (req, res) => {
+  const status = z.enum(['OPEN', 'RESOLVED', 'REFUNDED']).optional().parse(req.query.status);
+  const rows = await prisma.dispute.findMany({
+    where: status ? { status } : {},
+    orderBy: { createdAt: 'desc' },
+    include: {
+      booking: {
+        select: {
+          id: true,
+          status: true,
+          slotStart: true,
+          city: true,
+          category: { select: { name: true } },
+          customer: { select: { fullName: true, email: true } },
+          professional: { select: { user: { select: { fullName: true } } } },
+        },
+      },
+    },
+  });
+  res.json({ data: rows });
+});
+
+const resolveDisputeSchema = z.object({
+  status: z.enum(['RESOLVED', 'REFUNDED']),
+  resolutionNote: z.string().trim().min(3).max(500),
+}).strict();
+
+adminRouter.patch('/disputes/:id', async (req, res) => {
+  const { id } = parse(idParam, req.params);
+  const body = parse(resolveDisputeSchema, req.body);
+  const dispute = await prisma.dispute.update({
+    where: { id },
+    data: { status: body.status, resolutionNote: body.resolutionNote },
+  }).catch((e) => {
+    if (e.code === 'P2025') throw new HttpError(404, 'NOT_FOUND', 'Dispute not found');
+    throw e;
+  });
+  audit('dispute.resolved', req, { disputeId: id, status: body.status });
+  res.json({ data: dispute });
+});
+
