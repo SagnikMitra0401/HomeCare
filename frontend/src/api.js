@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 
-const BASE = import.meta.env.VITE_API_URL;
+const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
 export async function api(path, { method = 'GET', body } = {}) {
   const { data } = await supabase.auth.getSession();

@@ -15,7 +15,23 @@ export const app = express();
 app.set('trust proxy', 1); // Render sits behind a proxy
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(cors({ origin: config.corsOrigins, methods: ['GET', 'POST', 'PATCH'], allowedHeaders: ['Authorization', 'Content-Type'] }));
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (config.corsOrigins.includes('*') || config.corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    // Allow any Vercel preview domain if CORS_ORIGINS includes vercel.app
+    if (config.corsOrigins.some((o) => o.includes('vercel.app')) && origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    callback(null, false);
+  },
+  methods: ['GET', 'POST', 'PATCH'],
+  allowedHeaders: ['Authorization', 'Content-Type'],
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '20kb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
 

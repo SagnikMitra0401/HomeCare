@@ -1,35 +1,71 @@
-# HomeCare Plans — starter (React + Express + Prisma + Supabase)
+# HomeCare Plans — Subscription-Based Home Care Platform
 
-JavaScript only. `frontend/` (Vite React → Vercel), `backend/` (Express → Render), Supabase PostgreSQL + Auth.
-Specs: PROJECT_OBJECTIVE.md, SECURITY.md, MUST_TAKE_CARE_OF.md (not copied here). Decisions: `docs/ASSUMPTIONS.md`. Open work: `docs/NEXT_STEPS.md`.
-All payments are **simulated**. No real card/UPI/bank data is collected.
+A production-grade, subscription-based home maintenance platform inspired by **Urban Company**, built for **Unified Mentor**.
+Shift reactive, expensive emergency home repairs to predictable, preventive maintenance plans.
 
-## Local setup
-1. Create a Supabase project. In Auth settings, decide whether email confirmation is required.
-2. Copy variable names from `.env.example` into `backend/.env` and `frontend/.env` (placeholders only in the example).
-3. Backend:
+- **Frontend:** React (Vite) → **Vercel**
+- **Backend:** Node.js (Express 5 REST API) → **Render**
+- **Database:** Supabase PostgreSQL + Prisma ORM
+- **Repository:** [https://github.com/SagnikMitra0401/HomeCare.git](https://github.com/SagnikMitra0401/HomeCare.git)
+- **Deployment Guide:** See [`docs/DEPLOYMENT_GUIDE.md`](./docs/DEPLOYMENT_GUIDE.md)
+- **Technical Documentation:** See [`docs/TECHNICAL_DOCUMENTATION.md`](./docs/TECHNICAL_DOCUMENTATION.md)
+- **All Payments:** 100% **simulated** (UPI, Cards, NetBanking test mode; no real financial data collected).
+
+---
+
+## Quick Setup & Deployment Runbook
+
+### 1. Database (Supabase)
+Paste and run [`supabase_schema.sql`](./supabase_schema.sql) in your [Supabase SQL Editor](https://supabase.com/dashboard). This instantly initializes all tables, RLS security policies, constraints, and default plan seed data.
+
+### 2. Git Setup
+```bash
+git branch -M main
+git remote add origin https://github.com/SagnikMitra0401/HomeCare.git
+git push -u origin main
+```
+
+### 3. Backend Deployment (Render)
+- Deploy as a **Web Service** or **Blueprint** using [`render.yaml`](./render.yaml).
+- Root Directory: `backend` | Build: `npm install && npx prisma generate` | Start: `npm start`
+- Environment Variables:
+  - `NODE_ENV=production`
+  - `DATABASE_URL` (Supabase pooled URL, port 6543)
+  - `DIRECT_URL` (Supabase session URL, port 5432)
+  - `SUPABASE_URL` (https://PROJECT_REF.supabase.co)
+  - `CORS_ORIGINS` (Your Vercel URL, e.g. `https://your-app.vercel.app`)
+  - `ALLOW_SIMULATED_FAILURE=false`
+
+### 4. Frontend Deployment (Vercel)
+- Import repo on [vercel.com](https://vercel.com).
+- Framework: `Vite` | Root Directory: `./` (or `frontend`)
+- Environment Variables:
+  - `VITE_API_URL` (Render backend URL, e.g. `https://homecare-backend.onrender.com`)
+  - `VITE_SUPABASE_URL` (https://PROJECT_REF.supabase.co)
+  - `VITE_SUPABASE_ANON_KEY` (Supabase public anon key)
+
+---
+
+## Local Development
+1. Backend:
+   ```bash
+   cd backend
+   npm install
+   npm run build     # generates prisma client
+   npm test          # runs test suite
+   npm run dev       # http://localhost:4000
    ```
-   cd backend && npm install
-   npx prisma migrate dev --name init       # generates and applies the first migration; COMMIT backend/prisma/migrations
-   npx prisma migrate dev --create-only --name constraints_and_rls
-   #   paste backend/prisma/manual/constraints_and_rls.sql into that migration.sql, review it, then:
-   npx prisma migrate dev
-   npm run seed                              # synthetic categories + plans, idempotent, never deletes
-   npm run dev                               # http://localhost:4000/health
-   npm test                                  # unit tests for pure business rules
+2. Frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev       # http://localhost:5173
    ```
-4. Frontend: `cd frontend && npm install && npm run dev` (http://localhost:5173).
-5. Sign up in the UI (always CUSTOMER). Professionals apply from the customer dashboard.
 
-## Assigning an admin (no hardcoded credentials, first user is NOT promoted)
-Sign up and sign in once, then a trusted operator with DB access runs `cd backend && npm run make-admin -- you@example.com` (or an equivalent SQL `UPDATE "Profile" SET role='ADMIN'`). Enable MFA for that account in Supabase.
+## Creating an Administrator
+Sign up once in the UI, then run in Supabase SQL editor:
+```sql
+UPDATE "Profile" SET role = 'ADMIN' WHERE email = 'your-email@example.com';
+```
+*(Or run `cd backend && npm run make-admin -- your-email@example.com`)*
 
-## Deployment
-- **Supabase:** use the pooled URL (port 6543, `pgbouncer=true`) as `DATABASE_URL` and the direct/session URL as `DIRECT_URL`.
-- **Render (web service, root `backend`):** build `npm install && npx prisma generate`; start `npm start`. Set env vars in the dashboard: `NODE_ENV=production`, `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `CORS_ORIGINS=<your Vercel URL>`, `ALLOW_SIMULATED_FAILURE=false` (and `SUPABASE_JWT_SECRET` only for legacy HS256 projects). Health check: `/health`.
-- **Migrations in production:** one reviewed release step run from a single place: `cd backend && npx prisma migrate deploy`. The server never migrates on startup. Do not use `db push` or `migrate dev` on production.
-- **Vercel (root `frontend`):** set `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (public values only). `vercel.json` handles SPA routing.
-- Use separate Supabase projects for development and production.
-
-## Verification status
-See the end of the handoff message; nothing is claimed beyond what was actually run.
