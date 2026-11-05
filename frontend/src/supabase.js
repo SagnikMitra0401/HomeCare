@@ -1,6 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
-// Only the public URL and anon/publishable key are used in the browser.
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder'
-);
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  'placeholder';
+
+// Only public URL and anon/publishable key are used in the browser.
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
