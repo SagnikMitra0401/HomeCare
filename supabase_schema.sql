@@ -1,59 +1,66 @@
--- CreateSchema
+-- =====================================================================
+-- SAFE & IDEMPOTENT SUPABASE SCHEMA SETUP (Can be run multiple times safely)
+-- =====================================================================
+
 CREATE SCHEMA IF NOT EXISTS "public";
 
--- CreateEnum
-CREATE TYPE "Role" AS ENUM ('CUSTOMER', 'PROFESSIONAL', 'ADMIN');
+-- Safe Enum Creation
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'Role') THEN
+    CREATE TYPE "Role" AS ENUM ('CUSTOMER', 'PROFESSIONAL', 'ADMIN');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ProStatus') THEN
+    CREATE TYPE "ProStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'Interval') THEN
+    CREATE TYPE "Interval" AS ENUM ('MONTHLY', 'QUARTERLY', 'YEARLY');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'SubStatus') THEN
+    CREATE TYPE "SubStatus" AS ENUM ('ACTIVE', 'CANCELLED', 'EXPIRED');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PayStatus') THEN
+    CREATE TYPE "PayStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'BookingStatus') THEN
+    CREATE TYPE "BookingStatus" AS ENUM ('PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'DisputeStatus') THEN
+    CREATE TYPE "DisputeStatus" AS ENUM ('OPEN', 'RESOLVED', 'REFUNDED');
+  END IF;
+END $$;
 
--- CreateEnum
-CREATE TYPE "ProStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
-
--- CreateEnum
-CREATE TYPE "Interval" AS ENUM ('MONTHLY', 'QUARTERLY', 'YEARLY');
-
--- CreateEnum
-CREATE TYPE "SubStatus" AS ENUM ('ACTIVE', 'CANCELLED', 'EXPIRED');
-
--- CreateEnum
-CREATE TYPE "PayStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED');
-
--- CreateEnum
-CREATE TYPE "BookingStatus" AS ENUM ('PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
-
--- CreateTable
-CREATE TABLE "Profile" (
+-- Table: Profile
+CREATE TABLE IF NOT EXISTS "Profile" (
     "id" UUID NOT NULL,
     "email" TEXT NOT NULL,
     "fullName" TEXT,
     "role" "Role" NOT NULL DEFAULT 'CUSTOMER',
     "suspended" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "ServiceCategory" (
+-- Table: ServiceCategory
+CREATE TABLE IF NOT EXISTS "ServiceCategory" (
     "id" UUID NOT NULL,
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-
     CONSTRAINT "ServiceCategory_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "Professional" (
+-- Table: Professional
+CREATE TABLE IF NOT EXISTS "Professional" (
     "id" UUID NOT NULL,
     "userId" UUID NOT NULL,
     "status" "ProStatus" NOT NULL DEFAULT 'PENDING',
     "city" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "decidedAt" TIMESTAMP(3),
-
     CONSTRAINT "Professional_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "Plan" (
+-- Table: Plan
+CREATE TABLE IF NOT EXISTS "Plan" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -62,23 +69,21 @@ CREATE TABLE "Plan" (
     "perks" TEXT[],
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "Plan_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "PlanBenefit" (
+-- Table: PlanBenefit
+CREATE TABLE IF NOT EXISTS "PlanBenefit" (
     "id" UUID NOT NULL,
     "planId" UUID NOT NULL,
     "categoryId" UUID NOT NULL,
     "allowance" INTEGER,
     "periodMonths" INTEGER NOT NULL,
-
     CONSTRAINT "PlanBenefit_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "Subscription" (
+-- Table: Subscription
+CREATE TABLE IF NOT EXISTS "Subscription" (
     "id" UUID NOT NULL,
     "customerId" UUID NOT NULL,
     "planId" UUID NOT NULL,
@@ -90,12 +95,11 @@ CREATE TABLE "Subscription" (
     "startsAt" TIMESTAMP(3) NOT NULL,
     "endsAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "Payment" (
+-- Table: Payment
+CREATE TABLE IF NOT EXISTS "Payment" (
     "id" UUID NOT NULL,
     "customerId" UUID NOT NULL,
     "planId" UUID NOT NULL,
@@ -107,12 +111,11 @@ CREATE TABLE "Payment" (
     "simulated" BOOLEAN NOT NULL DEFAULT true,
     "failureReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "Booking" (
+-- Table: Booking
+CREATE TABLE IF NOT EXISTS "Booking" (
     "id" UUID NOT NULL,
     "customerId" UUID NOT NULL,
     "categoryId" UUID NOT NULL,
@@ -124,148 +127,145 @@ CREATE TABLE "Booking" (
     "notes" TEXT,
     "status" "BookingStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Booking_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "BookingDecline" (
+-- Table: BookingDecline
+CREATE TABLE IF NOT EXISTS "BookingDecline" (
     "bookingId" UUID NOT NULL,
     "professionalId" UUID NOT NULL,
-
     CONSTRAINT "BookingDecline_pkey" PRIMARY KEY ("bookingId","professionalId")
 );
 
--- CreateTable
-CREATE TABLE "Review" (
+-- Table: Review
+CREATE TABLE IF NOT EXISTS "Review" (
     "id" UUID NOT NULL,
     "bookingId" UUID NOT NULL,
     "rating" INTEGER NOT NULL,
     "comment" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
     CONSTRAINT "Review_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "_ProfessionalToServiceCategory" (
+-- Table: Dispute
+CREATE TABLE IF NOT EXISTS "Dispute" (
+    "id" UUID NOT NULL,
+    "bookingId" UUID NOT NULL,
+    "customerId" UUID NOT NULL,
+    "reason" TEXT NOT NULL,
+    "status" "DisputeStatus" NOT NULL DEFAULT 'OPEN',
+    "resolutionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Dispute_pkey" PRIMARY KEY ("id")
+);
+
+-- Join Table: _ProfessionalToServiceCategory
+CREATE TABLE IF NOT EXISTS "_ProfessionalToServiceCategory" (
     "A" UUID NOT NULL,
     "B" UUID NOT NULL,
-
     CONSTRAINT "_ProfessionalToServiceCategory_AB_pkey" PRIMARY KEY ("A","B")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "Profile_email_key" ON "Profile"("email");
+-- Safe Indexes
+CREATE UNIQUE INDEX IF NOT EXISTS "Profile_email_key" ON "Profile"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "ServiceCategory_slug_key" ON "ServiceCategory"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "Professional_userId_key" ON "Professional"("userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Plan_name_key" ON "Plan"("name");
+CREATE UNIQUE INDEX IF NOT EXISTS "PlanBenefit_planId_categoryId_key" ON "PlanBenefit"("planId", "categoryId");
+CREATE INDEX IF NOT EXISTS "Subscription_customerId_status_endsAt_idx" ON "Subscription"("customerId", "status", "endsAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "Payment_subscriptionId_key" ON "Payment"("subscriptionId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Payment_idempotencyKey_key" ON "Payment"("idempotencyKey");
+CREATE INDEX IF NOT EXISTS "Payment_customerId_createdAt_idx" ON "Payment"("customerId", "createdAt");
+CREATE INDEX IF NOT EXISTS "Booking_customerId_createdAt_idx" ON "Booking"("customerId", "createdAt");
+CREATE INDEX IF NOT EXISTS "Booking_status_categoryId_city_idx" ON "Booking"("status", "categoryId", "city");
+CREATE INDEX IF NOT EXISTS "Booking_professionalId_status_idx" ON "Booking"("professionalId", "status");
+CREATE UNIQUE INDEX IF NOT EXISTS "Booking_professionalId_slotStart_key" ON "Booking"("professionalId", "slotStart");
+CREATE UNIQUE INDEX IF NOT EXISTS "Review_bookingId_key" ON "Review"("bookingId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Dispute_bookingId_key" ON "Dispute"("bookingId");
+CREATE INDEX IF NOT EXISTS "Dispute_status_createdAt_idx" ON "Dispute"("status", "createdAt");
+CREATE INDEX IF NOT EXISTS "_ProfessionalToServiceCategory_B_index" ON "_ProfessionalToServiceCategory"("B");
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_subscription_per_customer ON "Subscription" ("customerId") WHERE "status" = 'ACTIVE';
 
--- CreateIndex
-CREATE UNIQUE INDEX "ServiceCategory_slug_key" ON "ServiceCategory"("slug");
+-- Safe Foreign Keys
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Professional_userId_fkey') THEN
+    ALTER TABLE "Professional" ADD CONSTRAINT "Professional_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PlanBenefit_planId_fkey') THEN
+    ALTER TABLE "PlanBenefit" ADD CONSTRAINT "PlanBenefit_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PlanBenefit_categoryId_fkey') THEN
+    ALTER TABLE "PlanBenefit" ADD CONSTRAINT "PlanBenefit_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ServiceCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Subscription_customerId_fkey') THEN
+    ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Subscription_planId_fkey') THEN
+    ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_customerId_fkey') THEN
+    ALTER TABLE "Payment" ADD CONSTRAINT "Payment_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_planId_fkey') THEN
+    ALTER TABLE "Payment" ADD CONSTRAINT "Payment_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Payment_subscriptionId_fkey') THEN
+    ALTER TABLE "Payment" ADD CONSTRAINT "Payment_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "Subscription"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Booking_customerId_fkey') THEN
+    ALTER TABLE "Booking" ADD CONSTRAINT "Booking_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Booking_categoryId_fkey') THEN
+    ALTER TABLE "Booking" ADD CONSTRAINT "Booking_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ServiceCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Booking_subscriptionId_fkey') THEN
+    ALTER TABLE "Booking" ADD CONSTRAINT "Booking_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "Subscription"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Booking_professionalId_fkey') THEN
+    ALTER TABLE "Booking" ADD CONSTRAINT "Booking_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BookingDecline_bookingId_fkey') THEN
+    ALTER TABLE "BookingDecline" ADD CONSTRAINT "BookingDecline_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'BookingDecline_professionalId_fkey') THEN
+    ALTER TABLE "BookingDecline" ADD CONSTRAINT "BookingDecline_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Review_bookingId_fkey') THEN
+    ALTER TABLE "Review" ADD CONSTRAINT "Review_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Dispute_bookingId_fkey') THEN
+    ALTER TABLE "Dispute" ADD CONSTRAINT "Dispute_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '_ProfessionalToServiceCategory_A_fkey') THEN
+    ALTER TABLE "_ProfessionalToServiceCategory" ADD CONSTRAINT "_ProfessionalToServiceCategory_A_fkey" FOREIGN KEY ("A") REFERENCES "Professional"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '_ProfessionalToServiceCategory_B_fkey') THEN
+    ALTER TABLE "_ProfessionalToServiceCategory" ADD CONSTRAINT "_ProfessionalToServiceCategory_B_fkey" FOREIGN KEY ("B") REFERENCES "ServiceCategory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
--- CreateIndex
-CREATE UNIQUE INDEX "Professional_userId_key" ON "Professional"("userId");
+-- Safe Check Constraints
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plan_price_nonneg') THEN
+    ALTER TABLE "Plan" ADD CONSTRAINT plan_price_nonneg CHECK ("pricePaise" >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'benefit_allowance_pos') THEN
+    ALTER TABLE "PlanBenefit" ADD CONSTRAINT benefit_allowance_pos CHECK ("allowance" IS NULL OR "allowance" > 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'benefit_period_pos') THEN
+    ALTER TABLE "PlanBenefit" ADD CONSTRAINT benefit_period_pos CHECK ("periodMonths" BETWEEN 1 AND 12);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payment_amount_nonneg') THEN
+    ALTER TABLE "Payment" ADD CONSTRAINT payment_amount_nonneg CHECK ("amountPaise" >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'review_rating_range') THEN
+    ALTER TABLE "Review" ADD CONSTRAINT review_rating_range CHECK ("rating" BETWEEN 1 AND 5);
+  END IF;
+END $$;
 
--- CreateIndex
-CREATE UNIQUE INDEX "Plan_name_key" ON "Plan"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "PlanBenefit_planId_categoryId_key" ON "PlanBenefit"("planId", "categoryId");
-
--- CreateIndex
-CREATE INDEX "Subscription_customerId_status_endsAt_idx" ON "Subscription"("customerId", "status", "endsAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Payment_subscriptionId_key" ON "Payment"("subscriptionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Payment_idempotencyKey_key" ON "Payment"("idempotencyKey");
-
--- CreateIndex
-CREATE INDEX "Payment_customerId_createdAt_idx" ON "Payment"("customerId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "Booking_customerId_createdAt_idx" ON "Booking"("customerId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "Booking_status_categoryId_city_idx" ON "Booking"("status", "categoryId", "city");
-
--- CreateIndex
-CREATE INDEX "Booking_professionalId_status_idx" ON "Booking"("professionalId", "status");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Booking_professionalId_slotStart_key" ON "Booking"("professionalId", "slotStart");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Review_bookingId_key" ON "Review"("bookingId");
-
--- CreateIndex
-CREATE INDEX "_ProfessionalToServiceCategory_B_index" ON "_ProfessionalToServiceCategory"("B");
-
--- AddForeignKey
-ALTER TABLE "Professional" ADD CONSTRAINT "Professional_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PlanBenefit" ADD CONSTRAINT "PlanBenefit_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PlanBenefit" ADD CONSTRAINT "PlanBenefit_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ServiceCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_planId_fkey" FOREIGN KEY ("planId") REFERENCES "Plan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "Subscription"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Booking" ADD CONSTRAINT "Booking_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Profile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Booking" ADD CONSTRAINT "Booking_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ServiceCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Booking" ADD CONSTRAINT "Booking_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "Subscription"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Booking" ADD CONSTRAINT "Booking_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "BookingDecline" ADD CONSTRAINT "BookingDecline_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "BookingDecline" ADD CONSTRAINT "BookingDecline_professionalId_fkey" FOREIGN KEY ("professionalId") REFERENCES "Professional"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Review" ADD CONSTRAINT "Review_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "_ProfessionalToServiceCategory" ADD CONSTRAINT "_ProfessionalToServiceCategory_A_fkey" FOREIGN KEY ("A") REFERENCES "Professional"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "_ProfessionalToServiceCategory" ADD CONSTRAINT "_ProfessionalToServiceCategory_B_fkey" FOREIGN KEY ("B") REFERENCES "ServiceCategory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Migration: constraints_and_rls
--- Check constraints, unique partial index, and RLS lockdown for PostgREST
-
-ALTER TABLE "Plan" ADD CONSTRAINT plan_price_nonneg CHECK ("pricePaise" >= 0);
-ALTER TABLE "PlanBenefit" ADD CONSTRAINT benefit_allowance_pos CHECK ("allowance" IS NULL OR "allowance" > 0);
-ALTER TABLE "PlanBenefit" ADD CONSTRAINT benefit_period_pos CHECK ("periodMonths" BETWEEN 1 AND 12);
-ALTER TABLE "Payment" ADD CONSTRAINT payment_amount_nonneg CHECK ("amountPaise" >= 0);
-ALTER TABLE "Review" ADD CONSTRAINT review_rating_range CHECK ("rating" BETWEEN 1 AND 5);
-
--- At most one ACTIVE subscription per customer (backstop for the application-level lock).
-CREATE UNIQUE INDEX one_active_subscription_per_customer ON "Subscription" ("customerId") WHERE "status" = 'ACTIVE';
-
--- Supabase exposes the public schema through PostgREST. This app uses Express + Prisma only,
--- so enable RLS on every table with NO policies and revoke API-role grants (deny by default).
+-- Enable RLS and Lock Down PostgREST Public Access
 DO $$
 DECLARE t text;
 BEGIN
@@ -276,45 +276,9 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
--- Prisma connects as the table-owning role, which bypasses RLS. Authorization is enforced in Express.
--- CreateEnum
-CREATE TYPE "DisputeStatus" AS ENUM ('OPEN', 'RESOLVED', 'REFUNDED');
-
--- CreateTable
-CREATE TABLE "Dispute" (
-    "id" UUID NOT NULL,
-    "bookingId" UUID NOT NULL,
-    "customerId" UUID NOT NULL,
-    "reason" TEXT NOT NULL,
-    "status" "DisputeStatus" NOT NULL DEFAULT 'OPEN',
-    "resolutionNote" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Dispute_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "Dispute_bookingId_key" ON "Dispute"("bookingId");
-
--- CreateIndex
-CREATE INDEX "Dispute_status_createdAt_idx" ON "Dispute"("status", "createdAt");
-
--- AddForeignKey
-ALTER TABLE "Dispute" ADD CONSTRAINT "Dispute_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- Enable RLS and revoke API grants on Dispute table
-ALTER TABLE public."Dispute" ENABLE ROW LEVEL SECURITY;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON public."Dispute" FROM anon, authenticated;
-  END IF;
-END $$;
-
 
 -- ==========================================
--- SEED INITIAL DATA (Categories & Default Plans)
+-- SEED INITIAL DATA (Safe Upserts)
 -- ==========================================
 
 -- Insert Service Categories
