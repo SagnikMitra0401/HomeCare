@@ -13,7 +13,10 @@ export async function api(path, { method = 'GET', body } = {}) {
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new Error('Network error. Check your connection and try again.');
+    if (!BASE && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      throw new Error('Backend API URL is not configured. Set VITE_API_URL on Vercel.');
+    }
+    throw new Error('Network error. Check your connection or API server status.');
   }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error?.message || `Request failed (${res.status})`);

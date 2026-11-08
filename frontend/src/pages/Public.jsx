@@ -66,24 +66,35 @@ export function Services() {
 }
 
 export function Login() {
-
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', fullName: '' });
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
+  const { session } = useAuth();
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  React.useEffect(() => {
+    if (session) nav('/dashboard', { replace: true });
+  }, [session, nav]);
 
   async function submit(e) {
     e.preventDefault();
     setBusy(true); setMsg(null);
     const { data, error } = mode === 'login'
       ? await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
-      : await supabase.auth.signUp({ email: form.email, password: form.password, options: { data: { full_name: form.fullName } } });
+      : await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: {
+            data: { full_name: form.fullName },
+            emailRedirectTo: `${window.location.origin}/login`,
+          },
+        });
     setBusy(false);
     if (error) return setMsg({ error: true, text: error.message });
     if (data.session) return nav('/dashboard');
-    setMsg({ text: 'Account created. Confirm your email if prompted, then sign in.' });
+    setMsg({ text: 'Account created! If email confirmation is enabled, check your email to confirm, then sign in.' });
   }
 
   return (
