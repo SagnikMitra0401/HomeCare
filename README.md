@@ -4,6 +4,8 @@ A full-stack, enterprise-grade home care platform designed to shift domestic mai
 
 - **Collaborating Organization:** Unified Mentor ([unifiedmentor.com](https://www.unifiedmentor.com/))
 - **Industry Reference Model:** Urban Company ([urbancompany.com](https://www.urbancompany.com/))
+- **Live Application (Vercel):** [homecare-lovat.vercel.app](https://homecare-lovat.vercel.app)
+- **Live Backend API (Render):** [homecare-backend-nkfv.onrender.com](https://homecare-backend-nkfv.onrender.com)
 - **Architecture:** Decoupled Single Page Application (SPA) with RESTful API
 - **Frontend Stack:** React 18, Vite, React Router DOM, Pure Modular CSS (Vercel)
 - **Backend Stack:** Node.js (>=20), Express 5, Prisma ORM (Render)
@@ -210,7 +212,10 @@ homecare/
    ```ini
    VITE_API_URL=http://localhost:4000
    VITE_SUPABASE_URL=https://[PROJECT_REF].supabase.co
-   VITE_SUPABASE_ANON_KEY=public-anon-key
+   # Either variable name is supported:
+   VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+   # or legacy:
+   # VITE_SUPABASE_ANON_KEY=public-anon-key
    ```
 3. Start the Vite development server:
    ```bash
@@ -264,7 +269,7 @@ Detailed step-by-step instructions and configuration options are documented in [
 | :--- | :--- |
 | `VITE_API_URL` | Deployed Render endpoint (e.g. `https://your-api.onrender.com`) |
 | `VITE_SUPABASE_URL` | Project HTTPS endpoint |
-| `VITE_SUPABASE_ANON_KEY` | Public client anon key |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Public client publishable or anon key (`sb_publishable_...` or anon JWT) |
 
 ---
 
