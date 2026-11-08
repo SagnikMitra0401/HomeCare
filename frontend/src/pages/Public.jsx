@@ -1,16 +1,87 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi } from '../hooks.js';
-import { rupees } from '../api.js';
+import { rupees, catIcon } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { supabase } from '../supabase.js';
 
-export const State = ({ loading, error, empty, reload }) => {
-  if (loading) return <p role="status">Loading…</p>;
-  if (error) return <p className="error" role="alert">{error} {reload && <button onClick={reload}>Retry</button>}</p>;
-  if (empty) return <p>Nothing here yet.</p>;
+/* ========== SKELETON BUILDING BLOCKS ========== */
+
+export function SkeletonCard() {
+  return (
+    <div className="card skeleton-card-inner">
+      <div className="skeleton skeleton-title" />
+      <div className="skeleton skeleton-text" />
+      <div className="skeleton skeleton-text skeleton-text-short" />
+      <div className="skeleton skeleton-price" />
+      <div className="skeleton skeleton-text" />
+      <div className="skeleton skeleton-text skeleton-text-xs" />
+      <div className="skeleton skeleton-button" />
+    </div>
+  );
+}
+
+export function SkeletonGrid({ count = 3 }) {
+  return (
+    <div className="grid">
+      {Array.from({ length: count }, (_, i) => <SkeletonCard key={i} />)}
+    </div>
+  );
+}
+
+export function SkeletonStat() {
+  return (
+    <div className="card">
+      <div className="skeleton skeleton-circle" />
+      <div className="skeleton skeleton-price" />
+      <div className="skeleton skeleton-text skeleton-text-short" />
+    </div>
+  );
+}
+
+export function SkeletonStatGrid({ count = 3 }) {
+  return (
+    <div className="grid grid-stats">
+      {Array.from({ length: count }, (_, i) => <SkeletonStat key={i} />)}
+    </div>
+  );
+}
+
+export function SkeletonTable({ rows = 3 }) {
+  return (
+    <div className="scroll">
+      <table>
+        <thead><tr><th><div className="skeleton skeleton-text" style={{ width: 60 }} /></th><th><div className="skeleton skeleton-text" style={{ width: 80 }} /></th><th><div className="skeleton skeleton-text" style={{ width: 60 }} /></th><th><div className="skeleton skeleton-text" style={{ width: 50 }} /></th></tr></thead>
+        <tbody>
+          {Array.from({ length: rows }, (_, i) => (
+            <tr key={i}><td><div className="skeleton skeleton-text" /></td><td><div className="skeleton skeleton-text" /></td><td><div className="skeleton skeleton-text skeleton-text-short" /></td><td><div className="skeleton skeleton-text skeleton-text-xs" /></td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ========== STATE COMPONENT ========== */
+
+export const State = ({ loading, error, empty, reload, skeleton }) => {
+  if (loading) return skeleton || <SkeletonGrid />;
+  if (error) return (
+    <div className="alert alert-danger">
+      <span>{error}</span>
+      {reload && <button className="button-ghost" onClick={reload} style={{ marginLeft: 'auto' }}>Retry</button>}
+    </div>
+  );
+  if (empty) return (
+    <div className="empty-state">
+      <div className="empty-state-icon">📋</div>
+      <p>Nothing here yet.</p>
+    </div>
+  );
   return null;
 };
+
+/* ========== PLANS PAGE ========== */
 
 const allowanceText = (b) =>
   `${b.category.name}: ${b.allowance === null ? 'unlimited' : b.allowance} per ${b.periodMonths === 1 ? 'month' : `${b.periodMonths} months`}`;
@@ -20,50 +91,80 @@ export function Plans() {
   const { me } = useAuth();
   return (
     <section>
-      <h1>Subscription plans</h1>
-      <p className="note">Payments in this app are simulated test transactions. No real money is charged.</p>
-      <State loading={loading} error={error} empty={data && !data.length} reload={reload} />
-      <div className="grid">
-        {data?.map((p) => (
-          <article className="card" key={p.id}>
-            <h2>{p.name}</h2>
-            <p>{p.description}</p>
-            <p className="price">{rupees(p.pricePaise)} <small>/ {p.interval.toLowerCase()}</small></p>
-            <ul>
-              {p.benefits.map((b, i) => <li key={i}>{allowanceText(b)}</li>)}
-              {p.perks.map((x) => <li key={x}>{x}</li>)}
-            </ul>
-            {me?.role === 'CUSTOMER' && <Link className="button" to={`/checkout/${p.id}`}>Choose plan</Link>}
-            {!me && <Link className="button" to="/login">Sign in to subscribe</Link>}
-          </article>
-        ))}
+      <div className="hero">
+        <h1>Home Maintenance, <span>Simplified</span></h1>
+        <p>Choose a subscription plan and get scheduled cleaning, plumbing, electrical, and AC services at predictable monthly prices.</p>
+        {!me && <Link to="/login" className="button button-lg">Get Started</Link>}
+      </div>
+
+      <State loading={loading} error={error} empty={data && !data.length} reload={reload}
+        skeleton={<SkeletonGrid count={4} />} />
+
+      {data?.length > 0 && (
+        <div className="grid">
+          {data.map((p, idx) => {
+            const isPopular = p.name.toLowerCase().includes('standard');
+            return (
+              <article className={`card card-hover card-accent${isPopular ? ' card-featured' : ''}`} key={p.id}>
+                <h2>{p.name}</h2>
+                <p className="note">{p.description}</p>
+                <p className="price">{rupees(p.pricePaise)} <small>/ {p.interval.toLowerCase()}</small></p>
+                <ul className="benefit-list">
+                  {p.benefits.map((b, i) => <li key={i}>{allowanceText(b)}</li>)}
+                  {p.perks.map((x) => <li key={x}>{x}</li>)}
+                </ul>
+                <div className="actions">
+                  {me?.role === 'CUSTOMER' && <Link className="button button-full" to={`/checkout/${p.id}`}>Choose Plan</Link>}
+                  {!me && <Link className="button button-full" to="/login">Sign in to Subscribe</Link>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="alert alert-info" style={{ marginTop: '1.5rem' }}>
+        All payments in this application are simulated test transactions. No real money is charged.
       </div>
     </section>
   );
 }
 
+/* ========== SERVICES PAGE ========== */
+
 export function Services() {
   const { data, loading, error, reload } = useApi('/api/categories');
-  const { me } = useAuth();
   return (
     <section>
-      <h1>Our Services & Preventive Care</h1>
-      <p className="note">Professional home maintenance services included in our subscription plans. Compare plans to get scheduled visits & priority emergency repairs.</p>
-      <State loading={loading} error={error} empty={data && !data.length} reload={reload} />
-      <div className="grid">
-        {data?.map((cat) => (
-          <article className="card" key={cat.id}>
-            <h2>{cat.name}</h2>
-            <p className="note">Available across supported cities. Covered under Basic, Standard, and Premium subscription plans.</p>
-            <div style={{ marginTop: '1rem' }}>
-              <Link className="button" to="/">View Plans Covering {cat.name}</Link>
-            </div>
-          </article>
-        ))}
+      <div className="page-header">
+        <h1>Our Services</h1>
+        <p>Professional home maintenance services included in subscription plans. Compare plans to get scheduled visits and priority emergency repairs.</p>
       </div>
+
+      <State loading={loading} error={error} empty={data && !data.length} reload={reload}
+        skeleton={<SkeletonGrid count={5} />} />
+
+      {data?.length > 0 && (
+        <div className="grid">
+          {data.map((cat, i) => (
+            <article className="card card-hover" key={cat.id}>
+              <div className={`cat-icon cat-bg-${i % 5}`}>
+                {catIcon(cat.name, i)}
+              </div>
+              <h2>{cat.name}</h2>
+              <p className="note">Available across supported cities. Covered under Basic, Standard, and Premium subscription plans.</p>
+              <div style={{ marginTop: '1rem' }}>
+                <Link className="button-secondary button" to="/">View Plans</Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
+
+/* ========== LOGIN / REGISTER ========== */
 
 export function Login() {
   const [mode, setMode] = useState('login');
@@ -99,18 +200,49 @@ export function Login() {
 
   return (
     <section className="narrow">
-      <h1>{mode === 'login' ? 'Sign in' : 'Create account'}</h1>
-      <form onSubmit={submit}>
-        {mode === 'register' && (<label>Full name<input required maxLength={100} value={form.fullName} onChange={set('fullName')} /></label>)}
-        <label>Email<input type="email" required value={form.email} onChange={set('email')} autoComplete="email" /></label>
-        <label>Password<input type="password" required minLength={8} value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
-        <button disabled={busy}>{busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Register'}</button>
-      </form>
-      {msg && <p className={msg.error ? 'error' : 'ok'} role="alert">{msg.text}</p>}
-      <p><button className="link" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-        {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
-      </button></p>
-      <p className="note">New accounts are always customers. Professionals apply from the dashboard after signing up.</p>
+      <div className="card" style={{ padding: '2rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>
+            {mode === 'login' ? 'Welcome back' : 'Create your account'}
+          </h1>
+          <p className="note" style={{ margin: 0 }}>
+            {mode === 'login' ? 'Sign in to manage your home care services' : 'Start your home maintenance journey'}
+          </p>
+        </div>
+
+        <div className="tabs">
+          <button className={`tab${mode === 'login' ? ' active' : ''}`} onClick={() => setMode('login')} type="button">Sign In</button>
+          <button className={`tab${mode === 'register' ? ' active' : ''}`} onClick={() => setMode('register')} type="button">Register</button>
+        </div>
+
+        <form onSubmit={submit}>
+          {mode === 'register' && (
+            <label>Full name
+              <input required maxLength={100} value={form.fullName} onChange={set('fullName')} placeholder="Your full name" />
+            </label>
+          )}
+          <label>Email
+            <input type="email" required value={form.email} onChange={set('email')} autoComplete="email" placeholder="you@example.com" />
+          </label>
+          <label>Password
+            <input type="password" required minLength={8} value={form.password} onChange={set('password')}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'} placeholder="Min. 8 characters" />
+          </label>
+          <button className="button-full button-lg" disabled={busy} style={{ marginTop: '0.5rem' }}>
+            {busy && <span className="spinner" />}
+            {busy ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+          </button>
+        </form>
+
+        {msg && (
+          <div className={`alert ${msg.error ? 'alert-danger' : 'alert-success'}`} style={{ marginTop: '1rem', marginBottom: 0 }} role="alert">
+            {msg.text}
+          </div>
+        )}
+      </div>
+      <p className="note" style={{ textAlign: 'center', marginTop: '1rem' }}>
+        New accounts are always customers. Professionals apply from the dashboard after signing up.
+      </p>
     </section>
   );
 }

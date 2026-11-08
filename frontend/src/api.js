@@ -24,4 +24,29 @@ export async function api(path, { method = 'GET', body } = {}) {
 }
 
 export const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-export const when = (iso) => new Date(iso).toLocaleString();
+export const when = (iso) => new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
+export const statusBadge = (s) => ({
+  ACTIVE: 'badge-success', PENDING: 'badge-warning', ACCEPTED: 'badge-info',
+  IN_PROGRESS: 'badge-brand', COMPLETED: 'badge-success', CANCELLED: 'badge-danger',
+  EXPIRED: 'badge-danger', APPROVED: 'badge-success', REJECTED: 'badge-danger',
+  SUCCEEDED: 'badge-success', FAILED: 'badge-danger', OPEN: 'badge-warning',
+  RESOLVED: 'badge-success', REFUNDED: 'badge-brand',
+})[s] || '';
+
+export const statusBorder = (s) => ({
+  PENDING: 'status-pending', ACCEPTED: 'status-accepted',
+  IN_PROGRESS: 'status-in-progress', COMPLETED: 'status-completed',
+  CANCELLED: 'status-cancelled',
+})[s] || '';
+
+export const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
+const CAT_ICONS = { Cleaning: '✨', Plumbing: '🔧', Electrical: '⚡', 'AC Servicing': '❄️', Appliance: '⚙️' };
+const FALLBACK_ICONS = ['🏠', '🔨', '🛠️', '📐', '🏗️'];
+export const catIcon = (name, i) => CAT_ICONS[name] || FALLBACK_ICONS[i % 5];
