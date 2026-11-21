@@ -23,11 +23,16 @@ export async function authenticate(req, _res, next) {
   }
   if (!payload.sub || !payload.email) throw new HttpError(401, 'INVALID_TOKEN', 'Session invalid or expired');
   const name = payload.user_metadata?.full_name;
-  const profile = await prisma.profile.upsert({
-    where: { id: payload.sub },
-    update: {},
-    create: { id: payload.sub, email: payload.email, fullName: typeof name === 'string' ? name.slice(0, 100) : null, role: 'CUSTOMER' },
-  });
+  // Use findUnique + conditional create instead of upsert(update:{}) to avoid a write on every request.
+  let profile = await prisma.profile.findUnique({ where: { id: payload.sub } });
+  if (!profile) {
+    profile = await prisma.profile.create({
+      data: { id: payload.sub, email: payload.email, fullName: typeof name === 'string' ? name.slice(0, 100) : null, role: 'CUSTOMER' },
+    });
+  } else if (typeof name === 'string' && name.length > 0 && profile.fullName !== name) {
+    // Keep the display name in sync when the user updates it in Supabase Auth.
+    profile = await prisma.profile.update({ where: { id: payload.sub }, data: { fullName: name.slice(0, 100) } });
+  }
   if (profile.suspended) throw new HttpError(403, 'SUSPENDED', 'Account suspended');
   req.user = profile;
   next();

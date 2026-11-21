@@ -72,8 +72,18 @@ export async function purchasePlan(user, { planId, idempotencyKey, scenario }) {
 
 const countUsed = (db, sub, b, at) => {
   const [from, to] = benefitWindow(sub.startsAt, b.periodMonths, at);
+  const now = new Date();
+  // Count a booking against the allowance only when it is active/fulfilled OR still in the future (slot not yet passed).
+  // Past PENDING bookings (never accepted, slot already elapsed) are excluded so stale requests
+  // don't permanently consume quota that the customer can no longer benefit from.
   return db.booking.count({
-    where: { subscriptionId: sub.id, categoryId: b.categoryId, status: { not: 'CANCELLED' }, slotStart: { gte: from, lt: to } },
+    where: {
+      subscriptionId: sub.id, categoryId: b.categoryId, slotStart: { gte: from, lt: to },
+      AND: [
+        { status: { not: 'CANCELLED' } },
+        { OR: [{ status: { not: 'PENDING' } }, { slotStart: { gt: now } }] },
+      ],
+    },
   });
 };
 

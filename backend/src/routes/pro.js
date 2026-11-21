@@ -13,20 +13,20 @@ const applySchema = z.object({
   categoryIds: z.array(z.string().uuid()).min(1).max(10),
 }).strict();
 
-// A signed-in customer applies; role changes to PROFESSIONAL but work stays blocked until an admin approves.
+// A signed-in customer applies. Role stays CUSTOMER until admin approves — avoids a dead-end trap
+// if the application is rejected (the user would otherwise be locked out of all customer routes).
 proRouter.post('/apply', requireRole('CUSTOMER'), async (req, res) => {
   const body = parse(applySchema, req.body);
   const ids = [...new Set(body.categoryIds)];
   const found = await prisma.serviceCategory.count({ where: { id: { in: ids } } });
   if (found !== ids.length) throw new HttpError(400, 'VALIDATION_ERROR', 'Unknown service category');
-  await prisma.$transaction([
-    prisma.professional.create({ data: { userId: req.user.id, city: body.city, categories: { connect: ids.map((id) => ({ id })) } } }),
-    prisma.profile.update({ where: { id: req.user.id }, data: { role: 'PROFESSIONAL' } }),
-  ]);
+  // Only create the Professional record. Role remains CUSTOMER until an admin approves (see admin.js).
+  await prisma.professional.create({ data: { userId: req.user.id, city: body.city, categories: { connect: ids.map((id) => ({ id })) } } });
   res.status(201).json({ data: { status: 'PENDING' } });
 });
 
-proRouter.get('/me', requireRole('PROFESSIONAL'), async (req, res) => {
+// CUSTOMER role allowed so pending applicants can check their application status before approval.
+proRouter.get('/me', requireRole('CUSTOMER', 'PROFESSIONAL'), async (req, res) => {
   const pro = await prisma.professional.findUnique({
     where: { userId: req.user.id },
     select: { status: true, city: true, categories: { select: { name: true } } },

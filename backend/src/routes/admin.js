@@ -64,10 +64,18 @@ adminRouter.get('/professionals', async (req, res) => {
 adminRouter.patch('/professionals/:id', async (req, res) => {
   const { id } = parse(idParam, req.params);
   const { status } = parse(z.object({ status: z.enum(['APPROVED', 'REJECTED']) }).strict(), req.body);
-  const pro = await prisma.professional.update({ where: { id }, data: { status, decidedAt: new Date() }, select: { id: true, status: true } })
-    .catch((e) => { if (e.code === 'P2025') throw new HttpError(404, 'NOT_FOUND', 'Professional not found'); throw e; });
+  // Run the professional status update and the profile role promotion/demotion in one transaction.
+  // APPROVED  → role becomes PROFESSIONAL (grants access to work endpoints)
+  // REJECTED  → role reverts to CUSTOMER   (prevents the applicant being trapped with no usable role)
+  const [pro] = await prisma.$transaction(async (tx) => {
+    const updated = await tx.professional.update({ where: { id }, data: { status, decidedAt: new Date() }, select: { id: true, status: true, userId: true } })
+      .catch((e) => { if (e.code === 'P2025') throw new HttpError(404, 'NOT_FOUND', 'Professional not found'); throw e; });
+    const newRole = status === 'APPROVED' ? 'PROFESSIONAL' : 'CUSTOMER';
+    await tx.profile.update({ where: { id: updated.userId }, data: { role: newRole } });
+    return [updated];
+  });
   audit('professional.decision', req, { professionalId: id, status });
-  res.json({ data: pro });
+  res.json({ data: { id: pro.id, status: pro.status } });
 });
 
 adminRouter.get('/analytics', async (_req, res) => {

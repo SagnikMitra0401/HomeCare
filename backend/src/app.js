@@ -22,8 +22,11 @@ const corsOptions = {
     if (config.corsOrigins.includes('*') || config.corsOrigins.includes(origin)) {
       return callback(null, true);
     }
-    // Allow any Vercel preview domain if CORS_ORIGINS includes vercel.app
-    if (config.corsOrigins.some((o) => o.includes('vercel.app')) && origin.endsWith('.vercel.app')) {
+    // Allow Vercel preview deployments scoped to THIS project only.
+    // Pattern: https://homecare-<hash>-sagnikmitratennis-1001s-projects.vercel.app
+    // This prevents any other Vercel tenant from hitting the API.
+    const vercelPreviewRe = /^https:\/\/homecare-[a-z0-9-]+-sagnikmitratennis-1001s-projects\.vercel\.app$/;
+    if (config.corsOrigins.some((o) => o.includes('vercel.app')) && vercelPreviewRe.test(origin)) {
       return callback(null, true);
     }
     callback(null, false);

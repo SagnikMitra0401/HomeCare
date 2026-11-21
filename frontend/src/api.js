@@ -2,12 +2,25 @@ import { supabase } from './supabase.js';
 
 const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
+// Exponential-backoff fetch: retries on network errors (e.g. Render cold-start taking ~28 s).
+// HTTP error responses (4xx/5xx) are NOT retried — only thrown fetch promises.
+async function fetchWithRetry(url, options, retries = 3, baseDelayMs = 2000) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (attempt === retries - 1) throw err; // last attempt — propagate
+      await new Promise((r) => setTimeout(r, baseDelayMs * Math.pow(2, attempt))); // 2 s, 4 s, …
+    }
+  }
+}
+
 export async function api(path, { method = 'GET', body } = {}) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   let res;
   try {
-    res = await fetch(`${BASE}${path}`, {
+    res = await fetchWithRetry(`${BASE}${path}`, {
       method,
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body ? JSON.stringify(body) : undefined,
@@ -16,7 +29,7 @@ export async function api(path, { method = 'GET', body } = {}) {
     if (!BASE && typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
       throw new Error('Backend API URL is not configured. Set VITE_API_URL on Vercel.');
     }
-    throw new Error('Network error. Check your connection or API server status.');
+    throw new Error('Network error. The server may be starting up — please wait a moment and retry.');
   }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error?.message || `Request failed (${res.status})`);
